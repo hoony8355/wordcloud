@@ -55,6 +55,11 @@ npm run build
 
 브라우저에서 `http://localhost:3000` 접속.
 
+## Vercel 빌드 안정화 메모
+
+- `npm run build`는 `NEXT_TELEMETRY_DISABLED=1 next build --no-lint`로 설정되어 있습니다.
+- 즉, CI/Vercel 빌드에서 telemetry 출력과 lint 단계 영향을 줄이고 타입체크 중심으로 빌드됩니다.
+
 ## GitHub 업로드 방법
 
 ```bash
