@@ -44,11 +44,13 @@ export interface AnalyzeDebugInfo {
   requestId: string;
   durationMs: number;
   fromCache: boolean;
+  stage?: string;
   domesticCandidateCount: number;
   trendCandidateCount: number;
   globalCandidateCount: number;
   recheckedCandidateCount: number;
   finalNodeCount: number;
+  errorMessage?: string;
 }
 
 export interface AnalyzeInsights {
@@ -65,5 +67,12 @@ export interface AnalyzeResponse {
   nodes: GraphNode[];
   links: GraphLink[];
   insights: AnalyzeInsights;
+  debug?: AnalyzeDebugInfo;
+}
+
+export interface AnalyzeErrorResponse {
+  error: string;
+  fallback?: boolean;
+  requestId?: string;
   debug?: AnalyzeDebugInfo;
 }

@@ -1,25 +1,44 @@
 'use client';
 
 import { useState } from 'react';
+import DebugPanel from '@/components/DebugPanel';
 import KeywordGraph from '@/components/KeywordGraph';
 import InsightPanel from '@/components/InsightPanel';
 import SearchForm from '@/components/SearchForm';
 import { logAnalyzeError, logAnalyzeStart, logAnalyzeSuccess } from '@/lib/utils/clientLogger';
-import type { AnalyzeResponse } from '@/types/keyword';
+import type { AnalyzeErrorResponse, AnalyzeResponse } from '@/types/keyword';
+
+interface DebugEntry {
+  ts: string;
+  level: 'info' | 'error';
+  message: string;
+  payload?: unknown;
+}
+
+function now() {
+  return new Date().toISOString();
+}
 
 export default function HomePage() {
   const [data, setData] = useState<AnalyzeResponse>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
+
+  const addDebug = (entry: DebugEntry) => {
+    setDebugEntries((prev) => [entry, ...prev].slice(0, 50));
+  };
 
   const handleAnalyze = async (keyword: string) => {
     if (!keyword.trim()) {
       setError('키워드를 입력해주세요.');
+      addDebug({ ts: now(), level: 'error', message: '빈 입력 차단' });
       return;
     }
 
     setLoading(true);
     setError(undefined);
+    addDebug({ ts: now(), level: 'info', message: '분석 요청 시작', payload: { keyword } });
     logAnalyzeStart(keyword);
 
     try {
@@ -29,16 +48,31 @@ export default function HomePage() {
         body: JSON.stringify({ keyword })
       });
 
+      addDebug({ ts: now(), level: 'info', message: 'API 응답 수신', payload: { status: response.status } });
+
       if (!response.ok) {
-        const failed = await response.json();
+        const failed = (await response.json()) as AnalyzeErrorResponse;
+        addDebug({
+          ts: now(),
+          level: 'error',
+          message: 'API 오류 응답',
+          payload: failed
+        });
         throw new Error(`[${failed.requestId ?? 'unknown'}] ${failed.error ?? '분석 실패'}`);
       }
 
       const json = (await response.json()) as AnalyzeResponse;
       logAnalyzeSuccess(json);
+      addDebug({ ts: now(), level: 'info', message: '분석 성공', payload: json.debug });
       setData(json);
     } catch (err) {
       logAnalyzeError(err);
+      addDebug({
+        ts: now(),
+        level: 'error',
+        message: '요청 처리 중 예외',
+        payload: err instanceof Error ? { message: err.message, stack: err.stack } : err
+      });
       setError(err instanceof Error ? err.message : '요청 실패');
     } finally {
       setLoading(false);
@@ -59,12 +93,13 @@ export default function HomePage() {
         <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300">
           <p>Request ID: {data.debug.requestId}</p>
           <p>
-            Duration: {data.debug.durationMs}ms / Cache: {data.debug.fromCache ? 'HIT' : 'MISS'}
+            Duration: {data.debug.durationMs}ms / Cache: {data.debug.fromCache ? 'HIT' : 'MISS'} / Stage: {data.debug.stage}
           </p>
           <p>
             Domestic: {data.debug.domesticCandidateCount}, Trend: {data.debug.trendCandidateCount}, Global:{' '}
             {data.debug.globalCandidateCount}, Rechecked: {data.debug.recheckedCandidateCount}
           </p>
+          {data.debug.errorMessage && <p className="text-rose-300">Error: {data.debug.errorMessage}</p>}
         </div>
       )}
 
@@ -72,6 +107,8 @@ export default function HomePage() {
         <KeywordGraph data={data} />
         <InsightPanel insights={data?.insights} />
       </section>
+
+      <DebugPanel entries={debugEntries} />
     </main>
   );
 }

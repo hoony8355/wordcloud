@@ -12,7 +12,7 @@
 - 그래프 시각화(`react-force-graph-2d`) + 인사이트 패널
 - 일부 provider 실패 시 전체 실패 대신 fallback 동작
 - 기본 rate limit + 5분 메모리 캐시 적용
-- 브라우저(F12) 콘솔 친화 디버깅 로그 + requestId 표시
+- 브라우저(F12) 콘솔 + 화면 내 디버그 패널(최근 50개 로그) + requestId 표시
 
 ## 사용 API
 
@@ -42,6 +42,7 @@ NEXT_PUBLIC_DEBUG_LOGS=1
 ```
 
 - `NEXT_PUBLIC_DEBUG_LOGS=1`: F12 콘솔에 분석 시작/성공/오류 로그를 상세 출력합니다.
+- 페이지 하단 `실시간 디버그 로그` 패널에서도 동일 요청 흐름(요청/응답/예외)을 확인할 수 있습니다.
 
 > API 키가 없더라도 fallback 데이터로 데모 동작은 가능하도록 구성했습니다.
 

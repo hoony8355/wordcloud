@@ -9,7 +9,7 @@ import { collectTrendScores } from '@/lib/analyzers/trend';
 import { classifyIntent } from '@/lib/utils/keywords';
 import { logger } from '@/lib/utils/logger';
 import { normalizeKeyword } from '@/lib/utils/normalize';
-import type { AnalyzeResponse, KeywordCandidate } from '@/types/keyword';
+import type { AnalyzeDebugInfo, AnalyzeResponse, KeywordCandidate } from '@/types/keyword';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
@@ -58,22 +58,41 @@ function setCached(keyword: string, value: AnalyzeResponse): void {
   });
 }
 
+function createBaseDebug(requestId: string, startedAt: number): AnalyzeDebugInfo {
+  return {
+    requestId,
+    durationMs: Date.now() - startedAt,
+    fromCache: false,
+    stage: 'init',
+    domesticCandidateCount: 0,
+    trendCandidateCount: 0,
+    globalCandidateCount: 0,
+    recheckedCandidateCount: 0,
+    finalNodeCount: 0
+  };
+}
+
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   const requestId = randomUUID().slice(0, 8);
+  const debug = createBaseDebug(requestId, startedAt);
 
   try {
     const body = (await req.json()) as { keyword?: string };
     const keyword = normalizeKeyword(body.keyword ?? '');
 
     if (!keyword) {
-      return NextResponse.json({ error: '키워드를 입력해주세요.', requestId }, { status: 400 });
+      debug.stage = 'validate';
+      debug.durationMs = Date.now() - startedAt;
+      return NextResponse.json({ error: '키워드를 입력해주세요.', requestId, debug }, { status: 400 });
     }
 
     const clientId = getClientId(req);
     if (!checkRateLimit(clientId)) {
+      debug.stage = 'rate_limit';
+      debug.durationMs = Date.now() - startedAt;
       return NextResponse.json(
-        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', requestId },
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', requestId, debug },
         { status: 429 }
       );
     }
@@ -81,25 +100,30 @@ export async function POST(req: NextRequest) {
     const cached = getCached(keyword);
     if (cached) {
       cached.debug = {
-        ...(cached.debug ?? {
-          domesticCandidateCount: 0,
-          trendCandidateCount: 0,
-          globalCandidateCount: 0,
-          recheckedCandidateCount: 0,
-          finalNodeCount: cached.nodes.length
-        }),
+        ...(cached.debug ?? createBaseDebug(requestId, startedAt)),
         requestId,
         durationMs: Date.now() - startedAt,
-        fromCache: true
+        fromCache: true,
+        stage: 'cache_hit'
       };
 
       return NextResponse.json(cached);
     }
 
+    debug.stage = 'domestic_collect';
     const domesticMap = await collectDomesticCandidates(keyword);
-    const trendMap = await collectTrendScores(keyword, [...domesticMap.keys()]);
-    const global = await collectGlobalCandidates(keyword);
+    debug.domesticCandidateCount = domesticMap.size;
 
+    debug.stage = 'trend_collect';
+    const trendMap = await collectTrendScores(keyword, [...domesticMap.keys()]);
+    debug.trendCandidateCount = trendMap.size;
+
+    debug.stage = 'global_collect';
+    const global = await collectGlobalCandidates(keyword);
+    debug.globalCandidateCount = global.globalMap.size;
+    debug.recheckedCandidateCount = global.recheckedMap.size;
+
+    debug.stage = 'score_merge';
     const candidates: KeywordCandidate[] = [];
 
     domesticMap.forEach((domesticScore, candidateKeyword) => {
@@ -145,6 +169,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    debug.stage = 'finalize';
     const finalCandidates = [...deduped.values()]
       .filter((candidate) => candidate.score.finalScore >= ANALYZE_LIMITS.minScoreToInclude)
       .sort((a, b) => b.score.finalScore - a.score.finalScore)
@@ -175,14 +200,10 @@ export async function POST(req: NextRequest) {
             : undefined
       },
       debug: {
-        requestId,
+        ...debug,
         durationMs: Date.now() - startedAt,
-        fromCache: false,
-        domesticCandidateCount: domesticMap.size,
-        trendCandidateCount: trendMap.size,
-        globalCandidateCount: global.globalMap.size,
-        recheckedCandidateCount: global.recheckedMap.size,
-        finalNodeCount: finalCandidates.length + 1
+        finalNodeCount: finalCandidates.length + 1,
+        stage: 'done'
       }
     };
 
@@ -190,12 +211,17 @@ export async function POST(req: NextRequest) {
     logger.info(`[analyze:${requestId}] completed`, response.debug);
     return NextResponse.json(response);
   } catch (error) {
+    debug.stage = 'error';
+    debug.durationMs = Date.now() - startedAt;
+    debug.errorMessage = error instanceof Error ? error.message : 'unknown error';
+
     logger.error(`[analyze:${requestId}] failed`, error);
     return NextResponse.json(
       {
         error: '분석 중 오류가 발생했습니다.',
         fallback: true,
-        requestId
+        requestId,
+        debug
       },
       { status: 500 }
     );
