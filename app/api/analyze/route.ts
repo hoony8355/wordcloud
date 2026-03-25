@@ -243,7 +243,9 @@ export async function POST(req: NextRequest) {
           score: item.score.finalScore,
           source: item.source,
           rechecked: item.rechecked,
-          searchVolume: naverAdsMetricMap.get(item.keyword)?.normalizedQueryVolume
+          searchVolume: naverAdsMetricMap.get(item.keyword)?.normalizedQueryVolume,
+          ctr: naverAdsMetricMap.get(item.keyword)?.normalizedCtr,
+          competition: naverAdsMetricMap.get(item.keyword)?.competition
         }))
       ],
       links: finalCandidates.map((item) => ({
@@ -253,6 +255,13 @@ export async function POST(req: NextRequest) {
       })),
       insights: {
         ...buildInsights(finalCandidates),
+        topOpportunities: [...naverAdsMetricMap.values()]
+          .sort((a, b) => b.normalizedQueryVolume - a.normalizedQueryVolume)
+          .slice(0, 5)
+          .map((item) => ({
+            keyword: item.relKeyword,
+            reason: `검색량 ${Math.round(item.normalizedQueryVolume * 100)}점 / CTR ${Math.round(item.normalizedCtr * 100)}점 / 경쟁도 ${item.competition}`
+          })),
         warning:
           finalCandidates.length < 5
             ? '후보가 부족합니다. 더 구체적인 키워드 또는 API 키 설정을 확인해주세요.'

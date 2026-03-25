@@ -33,6 +33,8 @@ export interface GraphNode {
   source: KeywordSource;
   rechecked?: boolean;
   searchVolume?: number;
+  ctr?: number;
+  competition?: 'low' | 'mid' | 'high' | 'unknown';
 }
 
 export interface GraphLink {
@@ -60,6 +62,7 @@ export interface AnalyzeInsights {
   domesticCount: number;
   globalExpandedCount: number;
   recheckedCount: number;
+  topOpportunities?: Array<{ keyword: string; reason: string }>;
   warning?: string;
 }
 
