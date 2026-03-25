@@ -14,6 +14,30 @@ interface OpenAIResponse {
   }>;
 }
 
+const intentMap: Record<string, OpenAIIntentRow['intent']> = {
+  정보탐색: '정보탐색',
+  구매검토: '구매검토',
+  비교후기: '비교/후기',
+  '비교/후기': '비교/후기',
+  브랜드지역: '브랜드/지역',
+  '브랜드/지역': '브랜드/지역',
+  행동유도: '행동유도',
+  세부니즈: '세부니즈'
+};
+
+function extractJsonArray(content: string): string {
+  const trimmed = content.trim();
+  if (trimmed.startsWith('```')) {
+    return trimmed.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+  }
+  return trimmed;
+}
+
+function normalizeIntent(value: unknown): OpenAIIntentRow['intent'] | null {
+  const normalized = String(value ?? '').replace(/\s/g, '').replace(/\//g, '/');
+  return intentMap[normalized] ?? null;
+}
+
 export async function classifyIntentsWithOpenAI(keywords: string[]): Promise<OpenAIIntentRow[]> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || keywords.length === 0) return [];
@@ -45,14 +69,21 @@ export async function classifyIntentsWithOpenAI(keywords: string[]): Promise<Ope
   if (!content) return [];
 
   try {
-    const parsed = JSON.parse(content) as Array<{ keyword: string; intent: string; persona: string }>;
+    const parsed = JSON.parse(extractJsonArray(content)) as Array<{ keyword?: unknown; intent?: unknown; persona?: unknown }>;
+
     return parsed
-      .filter((row) => row.keyword && row.intent)
-      .map((row) => ({
-        keyword: row.keyword,
-        intent: (row.intent.replace('/', '') === '비교후기' ? '비교/후기' : row.intent) as OpenAIIntentRow['intent'],
-        persona: row.persona ?? '일반 탐색 사용자'
-      }));
+      .map((row) => {
+        const keyword = String(row.keyword ?? '').trim();
+        const intent = normalizeIntent(row.intent);
+        if (!keyword || !intent) return null;
+
+        return {
+          keyword,
+          intent,
+          persona: String(row.persona ?? '일반 탐색 사용자').trim() || '일반 탐색 사용자'
+        } satisfies OpenAIIntentRow;
+      })
+      .filter((row): row is OpenAIIntentRow => Boolean(row));
   } catch {
     return [];
   }
