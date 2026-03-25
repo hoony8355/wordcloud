@@ -1,5 +1,16 @@
 import { fetchJson } from './http';
 
+interface WikipediaSearchItem {
+  title: string;
+  snippet: string;
+}
+
+interface WikipediaSearchResponse {
+  query?: {
+    search?: WikipediaSearchItem[];
+  };
+}
+
 export async function searchWikipedia(term: string): Promise<string[]> {
   if (!term) return [];
 
@@ -13,7 +24,10 @@ export async function searchWikipedia(term: string): Promise<string[]> {
   });
 
   const url = `https://en.wikipedia.org/w/api.php?${params.toString()}`;
-  const data = await fetchJson<{ query?: { search?: Array<{ title: string; snippet: string }> } }>(url).catch(() => ({ query: {} }));
+  const data = await fetchJson<WikipediaSearchResponse>(url).catch(
+    (): WikipediaSearchResponse => ({ query: { search: [] } })
+  );
 
-  return (data.query?.search ?? []).flatMap((item) => [item.title, item.snippet]);
+  const rows = data.query?.search ?? [];
+  return rows.flatMap((item) => [item.title, item.snippet]);
 }
