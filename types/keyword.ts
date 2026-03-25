@@ -32,6 +32,7 @@ export interface GraphNode {
   score: number;
   source: KeywordSource;
   rechecked?: boolean;
+  searchVolume?: number;
 }
 
 export interface GraphLink {

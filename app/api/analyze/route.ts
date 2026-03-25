@@ -7,6 +7,7 @@ import { collectGlobalCandidates } from '@/lib/analyzers/global';
 import { enrichIntentByLLM } from '@/lib/analyzers/intent';
 import { computeFinalScore } from '@/lib/analyzers/scorer';
 import { collectTrendScores } from '@/lib/analyzers/trend';
+import { fetchNaverAdsKeywordMetrics } from '@/lib/providers/naverAds';
 import { upstashGet, upstashSet } from '@/lib/providers/upstash';
 import { classifyIntent } from '@/lib/utils/keywords';
 import { logger } from '@/lib/utils/logger';
@@ -221,6 +222,9 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => b.score.finalScore - a.score.finalScore)
       .slice(0, ANALYZE_LIMITS.maxFinalNodes);
 
+    debug.stage = 'naver_ads_metrics';
+    const naverAdsVolumeMap = await fetchNaverAdsKeywordMetrics(finalCandidates.map((item) => item.keyword));
+
     const response: AnalyzeResponse = {
       rootKeyword: keyword,
       nodes: [
@@ -230,7 +234,8 @@ export async function POST(req: NextRequest) {
           group: item.intent,
           score: item.score.finalScore,
           source: item.source,
-          rechecked: item.rechecked
+          rechecked: item.rechecked,
+          searchVolume: naverAdsVolumeMap.get(item.keyword)
         }))
       ],
       links: finalCandidates.map((item) => ({

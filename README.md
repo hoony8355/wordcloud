@@ -6,6 +6,7 @@
 
 - 키워드 입력 → `/api/analyze` 단일 엔드포인트 분석
 - 국내 수집(네이버/카카오) 중심 점수화
+- (선택) 네이버 검색광고 API로 검색량 레이어 추가 (노드 크기 반영)
 - 번역 provider 분리 구조(`lib/providers/translator.ts`)
 - (선택) OpenAI 기반 의도 재분류 레이어
 - (선택) Upstash Redis 기반 서버리스 캐시 레이어
@@ -22,6 +23,7 @@
 - **Naver Search API**: blog, webkr, shop, kin
 - **Naver DataLab Search Trend API**: 후보 반응성 비교
 - **Kakao Search API**: web, blog, cafe
+- **Naver SearchAd API (선택)**: 월간 검색량(PC/Mobile) 기반 보정
 - **Datamuse API**: 영어 연관어 확장
 - **Wikipedia(MediaWiki) Search API**: 영어 의미 확장
 - **LibreTranslate(기본 provider)**: 한↔영 번역 확장
@@ -39,6 +41,9 @@ cp .env.example .env.local
 NAVER_CLIENT_ID=
 NAVER_CLIENT_SECRET=
 KAKAO_REST_API_KEY=
+NAVER_AD_API_KEY=
+NAVER_AD_SECRET_KEY=
+NAVER_AD_CUSTOMER_ID=
 LIBRETRANSLATE_URL=https://libretranslate.de/translate
 LIBRETRANSLATE_API_KEY=
 OPENAI_API_KEY=
@@ -52,6 +57,7 @@ NEXT_PUBLIC_DEBUG_LOGS=1
 - 페이지 하단 `실시간 디버그 로그` 패널에서도 동일 요청 흐름(요청/응답/예외)을 확인할 수 있습니다.
 - `OPENAI_API_KEY`를 넣으면 키워드 intent를 LLM이 보정합니다(미설정 시 룰 기반 유지).
 - `UPSTASH_REDIS_REST_URL/TOKEN`을 넣으면 서버리스 환경에서도 캐시가 공유됩니다.
+- `NAVER_AD_*`를 넣으면 검색량 기반으로 노드 크기를 보정합니다(미설정 시 점수 기반 노드 크기 사용).
 
 > API 키가 없더라도 fallback 데이터로 데모 동작은 가능하도록 구성했습니다.
 
