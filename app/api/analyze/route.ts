@@ -156,6 +156,14 @@ export async function POST(req: NextRequest) {
 
     debug.stage = 'domestic_collect';
     const domesticMap = await collectDomesticCandidates(keyword);
+
+    debug.stage = 'naver_ads_seed';
+    const naverAdsSeedMetrics = await fetchNaverAdsKeywordMetrics([keyword]);
+    for (const metric of naverAdsSeedMetrics.values()) {
+      const boosted = metric.normalizedQueryVolume * 0.85 + metric.normalizedClickVolume * 0.1 + metric.normalizedCtr * 0.05;
+      domesticMap.set(metric.relKeyword, Math.max(boosted, domesticMap.get(metric.relKeyword) ?? 0));
+    }
+
     debug.domesticCandidateCount = domesticMap.size;
 
     debug.stage = 'trend_collect';
@@ -223,7 +231,7 @@ export async function POST(req: NextRequest) {
       .slice(0, ANALYZE_LIMITS.maxFinalNodes);
 
     debug.stage = 'naver_ads_metrics';
-    const naverAdsVolumeMap = await fetchNaverAdsKeywordMetrics(finalCandidates.map((item) => item.keyword));
+    const naverAdsMetricMap = await fetchNaverAdsKeywordMetrics(finalCandidates.map((item) => item.keyword));
 
     const response: AnalyzeResponse = {
       rootKeyword: keyword,
@@ -235,13 +243,13 @@ export async function POST(req: NextRequest) {
           score: item.score.finalScore,
           source: item.source,
           rechecked: item.rechecked,
-          searchVolume: naverAdsVolumeMap.get(item.keyword)
+          searchVolume: naverAdsMetricMap.get(item.keyword)?.normalizedQueryVolume
         }))
       ],
       links: finalCandidates.map((item) => ({
         source: keyword,
         target: item.keyword,
-        weight: item.relationStrength
+        weight: Math.min(1, item.relationStrength + (naverAdsMetricMap.get(item.keyword)?.normalizedCtr ?? 0) * 0.15)
       })),
       insights: {
         ...buildInsights(finalCandidates),

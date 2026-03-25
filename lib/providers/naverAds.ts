@@ -5,10 +5,26 @@ interface NaverAdsKeywordRow {
   relKeyword?: string;
   monthlyPcQcCnt?: unknown;
   monthlyMobileQcCnt?: unknown;
+  monthlyAvePcClkCnt?: unknown;
+  monthlyAveMobileClkCnt?: unknown;
+  monthlyAvePcCtr?: unknown;
+  monthlyAveMobileCtr?: unknown;
+  compIdx?: unknown;
 }
 
 interface NaverAdsResponse {
   keywordList?: NaverAdsKeywordRow[];
+}
+
+export interface NaverAdsMetric {
+  relKeyword: string;
+  queryVolume: number;
+  clickVolume: number;
+  ctr: number;
+  competition: 'low' | 'mid' | 'high' | 'unknown';
+  normalizedQueryVolume: number;
+  normalizedClickVolume: number;
+  normalizedCtr: number;
 }
 
 function getConfig() {
@@ -33,11 +49,18 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export async function fetchNaverAdsKeywordMetrics(keywords: string[]): Promise<Map<string, number>> {
+function normalizeMapValues(map: Map<string, NaverAdsMetric>, key: 'queryVolume' | 'clickVolume' | 'ctr', target: 'normalizedQueryVolume' | 'normalizedClickVolume' | 'normalizedCtr') {
+  const max = Math.max(...[...map.values()].map((item) => item[key]), 1);
+  map.forEach((row) => {
+    row[target] = row[key] / max;
+  });
+}
+
+export async function fetchNaverAdsKeywordMetrics(keywords: string[]): Promise<Map<string, NaverAdsMetric>> {
   const config = getConfig();
   if (!config || keywords.length === 0) return new Map();
 
-  const metricMap = new Map<string, number>();
+  const metricMap = new Map<string, NaverAdsMetric>();
 
   for (const keyword of keywords.slice(0, 20)) {
     const timestamp = Date.now().toString();
@@ -57,16 +80,35 @@ export async function fetchNaverAdsKeywordMetrics(keywords: string[]): Promise<M
 
     for (const row of data.keywordList ?? []) {
       if (!row.relKeyword) continue;
-      const volume = toNumber(row.monthlyPcQcCnt) + toNumber(row.monthlyMobileQcCnt);
-      metricMap.set(row.relKeyword, Math.max(volume, metricMap.get(row.relKeyword) ?? 0));
+
+      const queryVolume = toNumber(row.monthlyPcQcCnt) + toNumber(row.monthlyMobileQcCnt);
+      const clickVolume = toNumber(row.monthlyAvePcClkCnt) + toNumber(row.monthlyAveMobileClkCnt);
+      const ctr = toNumber(row.monthlyAvePcCtr) + toNumber(row.monthlyAveMobileCtr);
+      const competition = ['low', 'mid', 'high'].includes(String(row.compIdx))
+        ? (String(row.compIdx) as 'low' | 'mid' | 'high')
+        : 'unknown';
+
+      const prev = metricMap.get(row.relKeyword);
+      if (!prev || prev.queryVolume < queryVolume) {
+        metricMap.set(row.relKeyword, {
+          relKeyword: row.relKeyword,
+          queryVolume,
+          clickVolume,
+          ctr,
+          competition,
+          normalizedQueryVolume: 0,
+          normalizedClickVolume: 0,
+          normalizedCtr: 0
+        });
+      }
     }
   }
 
   if (metricMap.size === 0) return metricMap;
-  const max = Math.max(...metricMap.values(), 1);
-  for (const [key, value] of metricMap.entries()) {
-    metricMap.set(key, value / max);
-  }
+
+  normalizeMapValues(metricMap, 'queryVolume', 'normalizedQueryVolume');
+  normalizeMapValues(metricMap, 'clickVolume', 'normalizedClickVolume');
+  normalizeMapValues(metricMap, 'ctr', 'normalizedCtr');
 
   return metricMap;
 }

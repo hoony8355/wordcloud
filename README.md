@@ -23,7 +23,8 @@
 - **Naver Search API**: blog, webkr, shop, kin
 - **Naver DataLab Search Trend API**: 후보 반응성 비교
 - **Kakao Search API**: web, blog, cafe
-- **Naver SearchAd API (선택)**: 월간 검색량(PC/Mobile) 기반 보정
+- **Naver SearchAd API (선택)**: 월간 검색량/클릭/CTR/경쟁도 기반 보정
+- SearchAd 연동 시 `monthlyPcQcCnt`, `monthlyMobileQcCnt`, `monthlyAvePcClkCnt`, `monthlyAveMobileClkCnt`, `monthlyAvePcCtr`, `monthlyAveMobileCtr`, `compIdx`를 활용해 키워드 품질을 보정합니다.
 - **Datamuse API**: 영어 연관어 확장
 - **Wikipedia(MediaWiki) Search API**: 영어 의미 확장
 - **LibreTranslate(기본 provider)**: 한↔영 번역 확장
