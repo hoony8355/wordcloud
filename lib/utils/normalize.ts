@@ -1,5 +1,7 @@
-export function normalizeKeyword(value: string): string {
-  return value
+export function normalizeKeyword(value: unknown): string {
+  const safe = typeof value === 'string' ? value : String(value ?? '');
+
+  return safe
     .trim()
     .toLowerCase()
     .replace(/<[^>]+>/g, ' ')

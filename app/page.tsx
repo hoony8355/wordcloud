@@ -5,7 +5,7 @@ import DebugPanel from '@/components/DebugPanel';
 import KeywordGraph from '@/components/KeywordGraph';
 import InsightPanel from '@/components/InsightPanel';
 import SearchForm from '@/components/SearchForm';
-import { logAnalyzeError, logAnalyzeStart, logAnalyzeSuccess } from '@/lib/utils/clientLogger';
+import { logAnalyzeError, logAnalyzeNetwork, logAnalyzeStart, logAnalyzeSuccess } from '@/lib/utils/clientLogger';
 import type { AnalyzeErrorResponse, AnalyzeResponse } from '@/types/keyword';
 
 interface DebugEntry {
@@ -48,10 +48,12 @@ export default function HomePage() {
         body: JSON.stringify({ keyword })
       });
 
-      addDebug({ ts: now(), level: 'info', message: 'API 응답 수신', payload: { status: response.status } });
+      const raw = await response.json();
+      logAnalyzeNetwork(response.status, raw);
+      addDebug({ ts: now(), level: 'info', message: 'API 응답 수신', payload: { status: response.status, body: raw } });
 
       if (!response.ok) {
-        const failed = (await response.json()) as AnalyzeErrorResponse;
+        const failed = raw as AnalyzeErrorResponse;
         addDebug({
           ts: now(),
           level: 'error',
@@ -61,7 +63,7 @@ export default function HomePage() {
         throw new Error(`[${failed.requestId ?? 'unknown'}] ${failed.error ?? '분석 실패'}`);
       }
 
-      const json = (await response.json()) as AnalyzeResponse;
+      const json = raw as AnalyzeResponse;
       logAnalyzeSuccess(json);
       addDebug({ ts: now(), level: 'info', message: '분석 성공', payload: json.debug });
       if (json.debug?.stage === 'error') {

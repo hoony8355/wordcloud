@@ -16,14 +16,14 @@ const STOPWORDS = new Set([
   'best'
 ]);
 
-export function tokenize(text: string): string[] {
+export function tokenize(text: unknown): string[] {
   return normalizeKeyword(text)
     .split(' ')
     .map((t) => t.trim())
     .filter((t) => t.length > 1 && !STOPWORDS.has(t));
 }
 
-export function extractNgrams(text: string, maxN = 3): string[] {
+export function extractNgrams(text: unknown, maxN = 3): string[] {
   const tokens = tokenize(text);
   const results: string[] = [];
 

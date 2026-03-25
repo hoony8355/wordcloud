@@ -1,7 +1,7 @@
 import type { AnalyzeResponse } from '@/types/keyword';
 
 const isBrowser = typeof window !== 'undefined';
-const DEBUG_ENABLED = process.env.NEXT_PUBLIC_DEBUG_LOGS === '1' || process.env.NODE_ENV !== 'production';
+const DEBUG_ENABLED = process.env.NEXT_PUBLIC_DEBUG_LOGS !== '0';
 
 function stamp() {
   return new Date().toISOString();
@@ -29,6 +29,14 @@ export function logAnalyzeSuccess(response: AnalyzeResponse): void {
   );
   console.log('insights:', response.insights);
   console.log('debug:', response.debug);
+  console.groupEnd();
+}
+
+export function logAnalyzeNetwork(status: number, payload: unknown): void {
+  if (!isBrowser || !DEBUG_ENABLED) return;
+  console.groupCollapsed(`[KeywordMVP][${stamp()}] analyze:network`);
+  console.log('status:', status);
+  console.log('payload:', payload);
   console.groupEnd();
 }
 

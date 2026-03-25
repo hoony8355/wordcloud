@@ -42,7 +42,7 @@ LIBRETRANSLATE_API_KEY=
 NEXT_PUBLIC_DEBUG_LOGS=1
 ```
 
-- `NEXT_PUBLIC_DEBUG_LOGS=1`: F12 콘솔에 분석 시작/성공/오류 로그를 상세 출력합니다.
+- `NEXT_PUBLIC_DEBUG_LOGS`: 기본적으로 콘솔 로그가 켜져 있으며, `0`으로 설정하면 비활성화됩니다.
 - 페이지 하단 `실시간 디버그 로그` 패널에서도 동일 요청 흐름(요청/응답/예외)을 확인할 수 있습니다.
 
 > API 키가 없더라도 fallback 데이터로 데모 동작은 가능하도록 구성했습니다.
