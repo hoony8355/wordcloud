@@ -21,7 +21,9 @@ export default function DebugPanel({ entries }: DebugPanelProps) {
               <span className={entry.level === 'error' ? 'text-rose-300' : 'text-emerald-300'}>[{entry.level.toUpperCase()}]</span>{' '}
               {entry.ts} - {entry.message}
             </p>
-            {entry.payload && <pre className="mt-1 whitespace-pre-wrap text-[11px] text-slate-400">{JSON.stringify(entry.payload, null, 2)}</pre>}
+            {entry.payload !== undefined ? (
+              <pre className="mt-1 whitespace-pre-wrap text-[11px] text-slate-400">{JSON.stringify(entry.payload, null, 2)}</pre>
+            ) : null}
           </div>
         ))}
       </div>
