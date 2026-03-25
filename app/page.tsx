@@ -64,6 +64,14 @@ export default function HomePage() {
       const json = (await response.json()) as AnalyzeResponse;
       logAnalyzeSuccess(json);
       addDebug({ ts: now(), level: 'info', message: '분석 성공', payload: json.debug });
+      if (json.debug?.stage === 'error') {
+        addDebug({
+          ts: now(),
+          level: 'error',
+          message: '서버 fallback 결과 수신',
+          payload: { warning: json.insights.warning, debug: json.debug }
+        });
+      }
       setData(json);
     } catch (err) {
       logAnalyzeError(err);

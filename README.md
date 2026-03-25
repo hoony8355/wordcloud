@@ -11,6 +11,7 @@
 - 가중치 기반 최종 점수 산출(`config/weights.ts`)
 - 그래프 시각화(`react-force-graph-2d`) + 인사이트 패널
 - 일부 provider 실패 시 전체 실패 대신 fallback 동작
+- 서버 내부 오류 시에도 500 대신 fallback 분석 결과(200) 반환 + warning/debug 노출
 - 기본 rate limit + 5분 메모리 캐시 적용
 - 브라우저(F12) 콘솔 + 화면 내 디버그 패널(최근 50개 로그) + requestId 표시
 

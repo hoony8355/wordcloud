@@ -72,14 +72,44 @@ function createBaseDebug(requestId: string, startedAt: number): AnalyzeDebugInfo
   };
 }
 
+function buildFallbackResponse(keyword: string, debug: AnalyzeDebugInfo, warning: string): AnalyzeResponse {
+  const rootKeyword = keyword || '키워드';
+  const fallbackKeywords = ['가격', '후기', '추천', '비교', '예약'].map((suffix, idx) => ({
+    id: `${rootKeyword} ${suffix}`,
+    group: classifyIntent(suffix),
+    score: Number((0.8 - idx * 0.1).toFixed(2)),
+    source: 'domestic' as const
+  }));
+
+  return {
+    rootKeyword,
+    nodes: [{ id: rootKeyword, group: '핵심', score: 1, source: 'root' }, ...fallbackKeywords],
+    links: fallbackKeywords.map((item) => ({
+      source: rootKeyword,
+      target: item.id,
+      weight: item.score
+    })),
+    insights: {
+      topKeywords: fallbackKeywords.slice(0, 3).map((item) => item.id),
+      topIntentGroups: ['정보탐색', '구매검토', '비교/후기'],
+      domesticCount: fallbackKeywords.length,
+      globalExpandedCount: 0,
+      recheckedCount: 0,
+      warning
+    },
+    debug
+  };
+}
+
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   const requestId = randomUUID().slice(0, 8);
   const debug = createBaseDebug(requestId, startedAt);
+  let keyword = '';
 
   try {
     const body = (await req.json()) as { keyword?: string };
-    const keyword = normalizeKeyword(body.keyword ?? '');
+    keyword = normalizeKeyword(body.keyword ?? '');
 
     if (!keyword) {
       debug.stage = 'validate';
@@ -216,14 +246,13 @@ export async function POST(req: NextRequest) {
     debug.errorMessage = error instanceof Error ? error.message : 'unknown error';
 
     logger.error(`[analyze:${requestId}] failed`, error);
-    return NextResponse.json(
-      {
-        error: '분석 중 오류가 발생했습니다.',
-        fallback: true,
-        requestId,
-        debug
-      },
-      { status: 500 }
+
+    const fallback = buildFallbackResponse(
+      keyword,
+      { ...debug, finalNodeCount: 6 },
+      `서버 분석 오류로 fallback 결과를 표시합니다. requestId=${requestId}`
     );
+
+    return NextResponse.json(fallback, { status: 200 });
   }
 }
