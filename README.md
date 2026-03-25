@@ -60,6 +60,12 @@ npm run build
 - `npm run build`는 `NEXT_TELEMETRY_DISABLED=1 next build --no-lint`로 설정되어 있습니다.
 - 즉, CI/Vercel 빌드에서 telemetry 출력과 lint 단계 영향을 줄이고 타입체크 중심으로 빌드됩니다.
 
+## Vercel Output Directory 오류 해결
+
+- 본 저장소는 Next.js 프로젝트이며 빌드 산출물은 `.next`입니다.
+- Vercel Project Settings > Build & Output Settings에서 Output Directory가 `public`으로 고정되어 있다면 비워두거나 `.next`로 수정하세요.
+- 저장소에는 동일 설정을 위해 `vercel.json`(`framework: nextjs`, `outputDirectory: .next`)을 포함했습니다.
+
 ## GitHub 업로드 방법
 
 ```bash
