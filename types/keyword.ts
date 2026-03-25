@@ -40,6 +40,17 @@ export interface GraphLink {
   weight: number;
 }
 
+export interface AnalyzeDebugInfo {
+  requestId: string;
+  durationMs: number;
+  fromCache: boolean;
+  domesticCandidateCount: number;
+  trendCandidateCount: number;
+  globalCandidateCount: number;
+  recheckedCandidateCount: number;
+  finalNodeCount: number;
+}
+
 export interface AnalyzeInsights {
   topKeywords: string[];
   topIntentGroups: IntentGroup[];
@@ -54,4 +65,5 @@ export interface AnalyzeResponse {
   nodes: GraphNode[];
   links: GraphLink[];
   insights: AnalyzeInsights;
+  debug?: AnalyzeDebugInfo;
 }

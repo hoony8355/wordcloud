@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { ANALYZE_LIMITS } from '@/config/weights';
 import { buildInsights } from '@/lib/analyzers/cluster';
@@ -58,24 +59,40 @@ function setCached(keyword: string, value: AnalyzeResponse): void {
 }
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
+  const requestId = randomUUID().slice(0, 8);
+
   try {
     const body = (await req.json()) as { keyword?: string };
     const keyword = normalizeKeyword(body.keyword ?? '');
 
     if (!keyword) {
-      return NextResponse.json({ error: '키워드를 입력해주세요.' }, { status: 400 });
+      return NextResponse.json({ error: '키워드를 입력해주세요.', requestId }, { status: 400 });
     }
 
     const clientId = getClientId(req);
     if (!checkRateLimit(clientId)) {
       return NextResponse.json(
-        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', requestId },
         { status: 429 }
       );
     }
 
     const cached = getCached(keyword);
     if (cached) {
+      cached.debug = {
+        ...(cached.debug ?? {
+          domesticCandidateCount: 0,
+          trendCandidateCount: 0,
+          globalCandidateCount: 0,
+          recheckedCandidateCount: 0,
+          finalNodeCount: cached.nodes.length
+        }),
+        requestId,
+        durationMs: Date.now() - startedAt,
+        fromCache: true
+      };
+
       return NextResponse.json(cached);
     }
 
@@ -156,17 +173,29 @@ export async function POST(req: NextRequest) {
           finalCandidates.length < 5
             ? '후보가 부족합니다. 더 구체적인 키워드 또는 API 키 설정을 확인해주세요.'
             : undefined
+      },
+      debug: {
+        requestId,
+        durationMs: Date.now() - startedAt,
+        fromCache: false,
+        domesticCandidateCount: domesticMap.size,
+        trendCandidateCount: trendMap.size,
+        globalCandidateCount: global.globalMap.size,
+        recheckedCandidateCount: global.recheckedMap.size,
+        finalNodeCount: finalCandidates.length + 1
       }
     };
 
     setCached(keyword, response);
+    logger.info(`[analyze:${requestId}] completed`, response.debug);
     return NextResponse.json(response);
   } catch (error) {
-    logger.error('analyze route failed', error);
+    logger.error(`[analyze:${requestId}] failed`, error);
     return NextResponse.json(
       {
         error: '분석 중 오류가 발생했습니다.',
-        fallback: true
+        fallback: true,
+        requestId
       },
       { status: 500 }
     );

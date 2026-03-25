@@ -12,6 +12,7 @@
 - 그래프 시각화(`react-force-graph-2d`) + 인사이트 패널
 - 일부 provider 실패 시 전체 실패 대신 fallback 동작
 - 기본 rate limit + 5분 메모리 캐시 적용
+- 브라우저(F12) 콘솔 친화 디버깅 로그 + requestId 표시
 
 ## 사용 API
 
@@ -37,7 +38,10 @@ NAVER_CLIENT_SECRET=
 KAKAO_REST_API_KEY=
 LIBRETRANSLATE_URL=https://libretranslate.de/translate
 LIBRETRANSLATE_API_KEY=
+NEXT_PUBLIC_DEBUG_LOGS=1
 ```
+
+- `NEXT_PUBLIC_DEBUG_LOGS=1`: F12 콘솔에 분석 시작/성공/오류 로그를 상세 출력합니다.
 
 > API 키가 없더라도 fallback 데이터로 데모 동작은 가능하도록 구성했습니다.
 
@@ -76,6 +80,7 @@ git push -u origin main
 
 - body: `{ "keyword": "강남 헤어샵" }`
 - response: 루트 키워드, 노드/링크, 인사이트(상위 키워드/의도그룹/국내-해외 통계)
+- `debug`: requestId, 수행시간, 캐시 히트 여부, 단계별 후보 개수
 
 ## 주의사항 (무료 API 한계)
 

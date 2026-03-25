@@ -4,6 +4,7 @@ import { useState } from 'react';
 import KeywordGraph from '@/components/KeywordGraph';
 import InsightPanel from '@/components/InsightPanel';
 import SearchForm from '@/components/SearchForm';
+import { logAnalyzeError, logAnalyzeStart, logAnalyzeSuccess } from '@/lib/utils/clientLogger';
 import type { AnalyzeResponse } from '@/types/keyword';
 
 export default function HomePage() {
@@ -19,6 +20,7 @@ export default function HomePage() {
 
     setLoading(true);
     setError(undefined);
+    logAnalyzeStart(keyword);
 
     try {
       const response = await fetch('/api/analyze', {
@@ -29,12 +31,14 @@ export default function HomePage() {
 
       if (!response.ok) {
         const failed = await response.json();
-        throw new Error(failed.error ?? '분석 실패');
+        throw new Error(`[${failed.requestId ?? 'unknown'}] ${failed.error ?? '분석 실패'}`);
       }
 
       const json = (await response.json()) as AnalyzeResponse;
+      logAnalyzeSuccess(json);
       setData(json);
     } catch (err) {
+      logAnalyzeError(err);
       setError(err instanceof Error ? err.message : '요청 실패');
     } finally {
       setLoading(false);
@@ -50,6 +54,19 @@ export default function HomePage() {
 
       <SearchForm onSubmit={handleAnalyze} loading={loading} />
       {error && <p className="rounded-lg border border-rose-700 bg-rose-950 p-3 text-sm text-rose-200">{error}</p>}
+
+      {data?.debug && (
+        <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300">
+          <p>Request ID: {data.debug.requestId}</p>
+          <p>
+            Duration: {data.debug.durationMs}ms / Cache: {data.debug.fromCache ? 'HIT' : 'MISS'}
+          </p>
+          <p>
+            Domestic: {data.debug.domesticCandidateCount}, Trend: {data.debug.trendCandidateCount}, Global:{' '}
+            {data.debug.globalCandidateCount}, Rechecked: {data.debug.recheckedCandidateCount}
+          </p>
+        </div>
+      )}
 
       <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <KeywordGraph data={data} />
