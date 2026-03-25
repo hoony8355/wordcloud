@@ -11,6 +11,7 @@
 - 가중치 기반 최종 점수 산출(`config/weights.ts`)
 - 그래프 시각화(`react-force-graph-2d`) + 인사이트 패널
 - 일부 provider 실패 시 전체 실패 대신 fallback 동작
+- 기본 rate limit + 5분 메모리 캐시 적용
 
 ## 사용 API
 
@@ -85,9 +86,11 @@ git push -u origin main
 
 ## TODO (2차 고도화)
 
-- Redis/Edge 캐싱
+- Redis/Edge 캐싱으로 다중 인스턴스 캐시 일관성 확보
 - 분석 결과 저장/히스토리
 - PNG/PDF 내보내기
 - 로그인/권한
 - 산업군 템플릿
 - 광고주 보고서용 자동 문장 생성
+- 의도 분류 고도화(룰 기반 → 경량 ML/LLM 보조)
+- 국내 재검증에서 DataLab 교차검증 범위 확대

@@ -6,9 +6,56 @@ import { collectGlobalCandidates } from '@/lib/analyzers/global';
 import { computeFinalScore } from '@/lib/analyzers/scorer';
 import { collectTrendScores } from '@/lib/analyzers/trend';
 import { classifyIntent } from '@/lib/utils/keywords';
-import { normalizeKeyword } from '@/lib/utils/normalize';
 import { logger } from '@/lib/utils/logger';
+import { normalizeKeyword } from '@/lib/utils/normalize';
 import type { AnalyzeResponse, KeywordCandidate } from '@/types/keyword';
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 20;
+const CACHE_TTL_MS = 5 * 60_000;
+
+const requestStore = new Map<string, number[]>();
+const resultCache = new Map<string, { expireAt: number; value: AnalyzeResponse }>();
+
+function getClientId(req: NextRequest): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0]?.trim() ?? 'unknown';
+  }
+  return 'unknown';
+}
+
+function checkRateLimit(clientId: string): boolean {
+  const now = Date.now();
+  const prev = requestStore.get(clientId) ?? [];
+  const active = prev.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+
+  if (active.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestStore.set(clientId, active);
+    return false;
+  }
+
+  active.push(now);
+  requestStore.set(clientId, active);
+  return true;
+}
+
+function getCached(keyword: string): AnalyzeResponse | null {
+  const cached = resultCache.get(keyword);
+  if (!cached) return null;
+  if (cached.expireAt < Date.now()) {
+    resultCache.delete(keyword);
+    return null;
+  }
+  return cached.value;
+}
+
+function setCached(keyword: string, value: AnalyzeResponse): void {
+  resultCache.set(keyword, {
+    value,
+    expireAt: Date.now() + CACHE_TTL_MS
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +64,19 @@ export async function POST(req: NextRequest) {
 
     if (!keyword) {
       return NextResponse.json({ error: '키워드를 입력해주세요.' }, { status: 400 });
+    }
+
+    const clientId = getClientId(req);
+    if (!checkRateLimit(clientId)) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429 }
+      );
+    }
+
+    const cached = getCached(keyword);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     const domesticMap = await collectDomesticCandidates(keyword);
@@ -46,7 +106,7 @@ export async function POST(req: NextRequest) {
       const score = computeFinalScore({
         domesticScore: domesticMap.get(candidateKeyword) ?? 0.1,
         trendScore: trendMap.get(candidateKeyword) ?? 0.05,
-        globalExpansionScore: global.globalMap.get(candidateKeyword) ?? 0.45,
+        globalExpansionScore: global.mappedGlobalScore.get(candidateKeyword) ?? 0.3,
         domesticRecheckScore
       });
 
@@ -99,6 +159,7 @@ export async function POST(req: NextRequest) {
       }
     };
 
+    setCached(keyword, response);
     return NextResponse.json(response);
   } catch (error) {
     logger.error('analyze route failed', error);
