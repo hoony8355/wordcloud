@@ -7,6 +7,8 @@
 - 키워드 입력 → `/api/analyze` 단일 엔드포인트 분석
 - 국내 수집(네이버/카카오) 중심 점수화
 - 번역 provider 분리 구조(`lib/providers/translator.ts`)
+- (선택) OpenAI 기반 의도 재분류 레이어
+- (선택) Upstash Redis 기반 서버리스 캐시 레이어
 - 해외 확장(Datamuse, Wikipedia) + 국내 재검증
 - 가중치 기반 최종 점수 산출(`config/weights.ts`)
 - 그래프 시각화(`react-force-graph-2d`) + 인사이트 패널
@@ -39,11 +41,17 @@ NAVER_CLIENT_SECRET=
 KAKAO_REST_API_KEY=
 LIBRETRANSLATE_URL=https://libretranslate.de/translate
 LIBRETRANSLATE_API_KEY=
+OPENAI_API_KEY=
+OPENAI_INTENT_MODEL=gpt-4o-mini
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 NEXT_PUBLIC_DEBUG_LOGS=1
 ```
 
 - `NEXT_PUBLIC_DEBUG_LOGS`: 기본적으로 콘솔 로그가 켜져 있으며, `0`으로 설정하면 비활성화됩니다.
 - 페이지 하단 `실시간 디버그 로그` 패널에서도 동일 요청 흐름(요청/응답/예외)을 확인할 수 있습니다.
+- `OPENAI_API_KEY`를 넣으면 키워드 intent를 LLM이 보정합니다(미설정 시 룰 기반 유지).
+- `UPSTASH_REDIS_REST_URL/TOKEN`을 넣으면 서버리스 환경에서도 캐시가 공유됩니다.
 
 > API 키가 없더라도 fallback 데이터로 데모 동작은 가능하도록 구성했습니다.
 

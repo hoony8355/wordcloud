@@ -4,8 +4,10 @@ import { ANALYZE_LIMITS } from '@/config/weights';
 import { buildInsights } from '@/lib/analyzers/cluster';
 import { collectDomesticCandidates } from '@/lib/analyzers/domestic';
 import { collectGlobalCandidates } from '@/lib/analyzers/global';
+import { enrichIntentByLLM } from '@/lib/analyzers/intent';
 import { computeFinalScore } from '@/lib/analyzers/scorer';
 import { collectTrendScores } from '@/lib/analyzers/trend';
+import { upstashGet, upstashSet } from '@/lib/providers/upstash';
 import { classifyIntent } from '@/lib/utils/keywords';
 import { logger } from '@/lib/utils/logger';
 import { normalizeKeyword } from '@/lib/utils/normalize';
@@ -41,21 +43,32 @@ function checkRateLimit(clientId: string): boolean {
   return true;
 }
 
-function getCached(keyword: string): AnalyzeResponse | null {
+async function getCached(keyword: string): Promise<AnalyzeResponse | null> {
   const cached = resultCache.get(keyword);
-  if (!cached) return null;
-  if (cached.expireAt < Date.now()) {
-    resultCache.delete(keyword);
-    return null;
+  if (cached && cached.expireAt >= Date.now()) {
+    return cached.value;
   }
-  return cached.value;
+
+  if (cached && cached.expireAt < Date.now()) {
+    resultCache.delete(keyword);
+  }
+
+  const remote = await upstashGet<AnalyzeResponse>(`analyze:${keyword}`);
+  if (remote) {
+    resultCache.set(keyword, { value: remote, expireAt: Date.now() + CACHE_TTL_MS });
+    return remote;
+  }
+
+  return null;
 }
 
-function setCached(keyword: string, value: AnalyzeResponse): void {
+async function setCached(keyword: string, value: AnalyzeResponse): Promise<void> {
   resultCache.set(keyword, {
     value,
     expireAt: Date.now() + CACHE_TTL_MS
   });
+
+  await upstashSet(`analyze:${keyword}`, value, Math.floor(CACHE_TTL_MS / 1000));
 }
 
 function createBaseDebug(requestId: string, startedAt: number): AnalyzeDebugInfo {
@@ -127,7 +140,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cached = getCached(keyword);
+    const cached = await getCached(keyword);
     if (cached) {
       cached.debug = {
         ...(cached.debug ?? createBaseDebug(requestId, startedAt)),
@@ -199,8 +212,11 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    debug.stage = 'llm_intent';
+    const enrichedCandidates = await enrichIntentByLLM([...deduped.values()]);
+
     debug.stage = 'finalize';
-    const finalCandidates = [...deduped.values()]
+    const finalCandidates = enrichedCandidates
       .filter((candidate) => candidate.score.finalScore >= ANALYZE_LIMITS.minScoreToInclude)
       .sort((a, b) => b.score.finalScore - a.score.finalScore)
       .slice(0, ANALYZE_LIMITS.maxFinalNodes);
@@ -237,7 +253,7 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    setCached(keyword, response);
+    await setCached(keyword, response);
     logger.info(`[analyze:${requestId}] completed`, response.debug);
     return NextResponse.json(response);
   } catch (error) {
