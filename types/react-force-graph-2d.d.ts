@@ -3,15 +3,15 @@ declare module 'react-force-graph-2d' {
 
   interface ForceGraph2DProps {
     graphData: {
-      nodes: Array<Record<string, unknown>>;
-      links: Array<Record<string, unknown>>;
+      nodes: unknown[];
+      links: unknown[];
     };
     backgroundColor?: string;
-    linkWidth?: number | ((link: Record<string, unknown>) => number);
+    linkWidth?: number | ((link: any) => number);
     nodeRelSize?: number;
-    nodeVal?: number | ((node: Record<string, unknown>) => number);
+    nodeVal?: number | ((node: any) => number);
     nodeCanvasObject?: (
-      node: Record<string, unknown>,
+      node: any,
       ctx: CanvasRenderingContext2D,
       globalScale: number
     ) => void;

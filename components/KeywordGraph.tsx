@@ -21,14 +21,19 @@ const groupColor: Record<string, string> = {
 };
 
 export default function KeywordGraph({ data }: KeywordGraphProps) {
-  const graphData = useMemo(
-    () =>
-      data ?? {
+  const graphData = useMemo(() => {
+    if (!data) {
+      return {
         nodes: [{ id: '분석 대기중', group: '핵심', score: 1, source: 'root' }],
         links: []
-      },
-    [data]
-  );
+      };
+    }
+
+    return {
+      nodes: data.nodes,
+      links: data.links
+    };
+  }, [data]);
 
   return (
     <div className="h-[520px] rounded-xl border border-slate-700 bg-slate-900">
