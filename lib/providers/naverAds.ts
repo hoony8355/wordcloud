@@ -3,8 +3,8 @@ import { fetchJson } from './http';
 
 interface NaverAdsKeywordRow {
   relKeyword?: string;
-  monthlyPcQcCnt?: string;
-  monthlyMobileQcCnt?: string;
+  monthlyPcQcCnt?: unknown;
+  monthlyMobileQcCnt?: unknown;
 }
 
 interface NaverAdsResponse {
@@ -24,9 +24,12 @@ function createSignature(timestamp: string, method: string, uri: string, secretK
   return crypto.createHmac('sha256', secretKey).update(message).digest('base64');
 }
 
-function toNumber(value?: string): number {
-  if (!value || value === '< 10') return 0;
-  const parsed = Number(value.replace(/,/g, ''));
+function toNumber(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  const normalized = String(value).trim();
+  if (!normalized || normalized === '< 10') return 0;
+
+  const parsed = Number(normalized.replace(/,/g, ''));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
