@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import DebugPanel from '@/components/DebugPanel';
 import KeywordGraph from '@/components/KeywordGraph';
+import UsageGuide from '@/components/UsageGuide';
 import InsightPanel from '@/components/InsightPanel';
 import SearchForm from '@/components/SearchForm';
 import { logAnalyzeError, logAnalyzeNetwork, logAnalyzeStart, logAnalyzeSuccess } from '@/lib/utils/clientLogger';
@@ -96,6 +97,7 @@ export default function HomePage() {
         <p className="text-sm text-slate-300">국내 API를 기준축으로, 번역+해외 확장 후 국내 재검증된 키워드를 그래프로 시각화합니다.</p>
       </header>
 
+      <UsageGuide />
       <SearchForm onSubmit={handleAnalyze} loading={loading} />
       {error && <p className="rounded-lg border border-rose-700 bg-rose-950 p-3 text-sm text-rose-200">{error}</p>}
 
